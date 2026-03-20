@@ -27,8 +27,11 @@ def exact_tsp_gurobi(
     n = len(nodes)
     idx_to_node = {i: node for i, node in enumerate(nodes)}
 
-    model = gp.Model("tsp")
-    model.Params.OutputFlag = 0
+    env = gp.Env(empty=True)
+    env.setParam("OutputFlag", 0)
+    env.start()
+
+    model = gp.Model("tsp", env=env)
     if time_limit is not None:
         model.Params.TimeLimit = time_limit
     model.Params.LazyConstraints = 1

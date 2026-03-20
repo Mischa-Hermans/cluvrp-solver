@@ -1,9 +1,10 @@
-"""Save result objects to disk."""
+"""Save and load result objects to disk."""
 
 from __future__ import annotations
 
 from pathlib import Path
 import json
+import pickle
 import pandas as pd
 
 from src.cluvrp.types import Solution, RunHistory, RunStats
@@ -48,3 +49,14 @@ def save_run_json(path: Path, solution: Solution, history: RunHistory, stats: Ru
         },
     }
     path.write_text(json.dumps(payload, indent=2))
+
+
+def save_pickle(obj, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
+        pickle.dump(obj, f)
+
+
+def load_pickle(path: Path):
+    with path.open("rb") as f:
+        return pickle.load(f)

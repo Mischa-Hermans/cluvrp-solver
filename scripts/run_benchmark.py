@@ -1,4 +1,4 @@
-"""Run all benchmark instances and save the final csv table."""
+"""Run all benchmark instances and save the final csv table and full results."""
 
 from configs.default import (
     INSTANCE_DIRS,
@@ -6,6 +6,7 @@ from configs.default import (
     BEST_KNOWN_HARD,
     BEST_KNOWN_SOFT,
     TABLES_DIR,
+    LOGS_DIR,
 )
 from configs.sa import (
     ALPHA_BALANCE,
@@ -20,7 +21,7 @@ from configs.sa import (
 from configs.benchmark import CHECKPOINT_SECONDS, BENCHMARK_TIME_LIMIT_SECONDS, BASE_SEED
 from src.cluvrp.io.instance_reader import get_instance_path, read_gvrp_instance
 from src.cluvrp.experiments.benchmark import run_benchmark
-from src.cluvrp.io.result_io import save_dataframe_csv
+from src.cluvrp.io.result_io import save_dataframe_csv, save_pickle
 
 if __name__ == "__main__":
     instances = {
@@ -28,7 +29,7 @@ if __name__ == "__main__":
         for name in INSTANCE_NAMES
     }
 
-    results_df, _ = run_benchmark(
+    results_df, all_runs = run_benchmark(
         instances=instances,
         instance_names=INSTANCE_NAMES,
         checkpoint_seconds=CHECKPOINT_SECONDS,
@@ -47,7 +48,14 @@ if __name__ == "__main__":
     )
 
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = TABLES_DIR / "soft_cluvrp_sa_exact_results_A_to_K.csv"
-    save_dataframe_csv(results_df, out_path)
-    print(f"Saved results to: {out_path.resolve()}")
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+    csv_path = TABLES_DIR / "soft_cluvrp_sa_exact_results_A_to_K.csv"
+    pkl_path = LOGS_DIR / "benchmark_runs.pkl"
+
+    save_dataframe_csv(results_df, csv_path)
+    save_pickle(all_runs, pkl_path)
+
+    print(f"Saved table to: {csv_path.resolve()}")
+    print(f"Saved full benchmark results to: {pkl_path.resolve()}")
     print(results_df)

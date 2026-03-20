@@ -1,0 +1,1 @@
+"""Track best-so-far values over time."""

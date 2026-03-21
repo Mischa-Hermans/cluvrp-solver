@@ -42,3 +42,26 @@ def cluster_misplacement_scores(
 
     scores.sort(reverse=True)
     return scores
+
+
+def nearest_partners_within_supercluster(
+    instance: GVRPInstance,
+    solution: Solution,
+    anchor_cluster: int,
+    src_sc: int,
+    max_partners: int = 4,
+) -> List[int]:
+    cluster_centroids = compute_cluster_centroids(instance)
+    anchor_xy = cluster_centroids[anchor_cluster]
+
+    candidates = [
+        r for r in solution.superclusters[src_sc]
+        if r != anchor_cluster
+    ]
+
+    ranked = sorted(
+        candidates,
+        key=lambda r: euclidean(anchor_xy, cluster_centroids[r]),
+    )
+
+    return ranked[: min(max_partners, len(ranked))]

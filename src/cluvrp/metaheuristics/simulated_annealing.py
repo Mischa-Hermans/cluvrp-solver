@@ -14,6 +14,9 @@ from src.cluvrp.neighborhoods.relocate import neighborhood_relocate_best
 from src.cluvrp.neighborhoods.swap import neighborhood_swap_restricted
 from src.cluvrp.neighborhoods.remove_reinsert import neighborhood_remove_reinsert_two
 from src.cluvrp.neighborhoods.ejection_chain import neighborhood_ejection_chain_light
+from src.cluvrp.neighborhoods.pair_relocate import neighborhood_pair_relocate_best
+from src.cluvrp.neighborhoods.swap_two_one import neighborhood_swap_two_one
+from src.cluvrp.neighborhoods.remove_reinsert_three import neighborhood_remove_reinsert_three
 from src.cluvrp.tracking.history import initialize_history, record_step
 from src.cluvrp.types import GVRPInstance, RunStats
 
@@ -39,6 +42,12 @@ def propose_neighbor(
         return neighborhood_remove_reinsert_two(instance, solution, rng, node_dist), move_type
     if move_type == "ejection_chain_light":
         return neighborhood_ejection_chain_light(instance, solution, rng, node_dist), move_type
+    if move_type == "pair_relocate_best":
+        return neighborhood_pair_relocate_best(instance, solution, rng, node_dist), move_type
+    if move_type == "swap_two_one":
+        return neighborhood_swap_two_one(instance, solution, rng, node_dist), move_type
+    if move_type == "remove_reinsert_three":
+        return neighborhood_remove_reinsert_three(instance, solution, rng, node_dist), move_type
 
     raise ValueError(f"Unknown neighborhood: {move_type}")
 
@@ -62,6 +71,9 @@ def optimize_with_simulated_annealing(
             "swap_restricted": 1.0,
             "remove_reinsert_two": 1.0,
             "ejection_chain_light": 1.0,
+            "pair_relocate_best": 1.0,
+            "swap_two_one": 1.0,
+            "remove_reinsert_three": 1.0,
         }
 
     del max_neighbor_attempts

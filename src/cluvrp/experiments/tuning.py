@@ -27,8 +27,9 @@ def evaluate_sa_config(
     iterations_per_temp: int,
     construction_iterations: int,
 ):
-    rows = []
+    detailed_rows = []
     gaps = []
+    obj_vals = []
 
     for instance_name in tuning_instance_names:
         instance = instances[instance_name]
@@ -52,19 +53,21 @@ def evaluate_sa_config(
             obj_val = result["best_solution"].total_cost
             gap_pct = None if best_known is None else compute_gap_percent(obj_val, best_known)
 
-            rows.append({
+            obj_vals.append(obj_val)
+            if gap_pct is not None:
+                gaps.append(gap_pct)
+
+            detailed_rows.append({
                 "instance": instance_name,
                 "seed": seed,
                 "obj_val": round(obj_val, 3),
                 "gap_pct": None if gap_pct is None else round(gap_pct, 3),
             })
 
-            if gap_pct is not None:
-                gaps.append(gap_pct)
-
     mean_gap = float(sum(gaps) / len(gaps)) if gaps else float("inf")
-    detailed_df = pd.DataFrame(rows)
-    return mean_gap, detailed_df
+    mean_obj = float(sum(obj_vals) / len(obj_vals)) if obj_vals else float("inf")
+
+    return mean_gap, mean_obj, detailed_rows
 
 
 def run_optuna_tuning(
@@ -73,6 +76,7 @@ def run_optuna_tuning(
     seeds: list[int],
     time_limit_seconds: float,
     n_trials: int,
+    n_jobs: int,
     best_known_soft: dict,
     alpha_balance: float,
     min_temp: float,
@@ -87,9 +91,25 @@ def run_optuna_tuning(
     construction_iterations_min: int,
     construction_iterations_max: int,
     study_name: str = "sa_tuning",
+    storage_url: str | None = None,
+    optuna_seed: int | None = None,
+    reset_existing_study: bool = False,
 ):
-    trial_rows = []
-    detailed_rows = []
+    sampler = optuna.samplers.TPESampler(seed=optuna_seed)
+
+    if storage_url is not None and reset_existing_study:
+        try:
+            optuna.delete_study(study_name=study_name, storage=storage_url)
+        except KeyError:
+            pass
+
+    study = optuna.create_study(
+        direction="minimize",
+        study_name=study_name,
+        storage=storage_url,
+        load_if_exists=not reset_existing_study,
+        sampler=sampler,
+    )
 
     def objective(trial: optuna.Trial) -> float:
         initial_temp = trial.suggest_float(
@@ -115,14 +135,15 @@ def run_optuna_tuning(
         )
 
         print(
-            f"\nTrial {trial.number}: "
-            f"T0={initial_temp:.1f}, "
+            f"Trial {trial.number}: "
+            f"T0={initial_temp:.2f}, "
             f"cool={cooling_rate:.4f}, "
             f"iters={iterations_per_temp}, "
-            f"construct={construction_iterations}"
+            f"construct={construction_iterations}",
+            flush=True,
         )
 
-        mean_gap, detailed_df = evaluate_sa_config(
+        mean_gap, mean_obj, detailed_rows = evaluate_sa_config(
             instances=instances,
             tuning_instance_names=tuning_instance_names,
             seeds=seeds,
@@ -138,33 +159,41 @@ def run_optuna_tuning(
             construction_iterations=construction_iterations,
         )
 
-        print(f" -> mean gap = {mean_gap:.3f}")
+        trial.set_user_attr("mean_obj_val", mean_obj)
+        trial.set_user_attr("detailed_rows", detailed_rows)
 
-        trial_rows.append({
-            "trial_number": trial.number,
-            "initial_temp": initial_temp,
-            "cooling_rate": cooling_rate,
-            "iterations_per_temp": iterations_per_temp,
-            "construction_iterations": construction_iterations,
-            "mean_gap_pct": mean_gap,
-        })
-
-        if not detailed_df.empty:
-            detailed_df = detailed_df.copy()
-            detailed_df["trial_number"] = trial.number
-            detailed_df["initial_temp"] = initial_temp
-            detailed_df["cooling_rate"] = cooling_rate
-            detailed_df["iterations_per_temp"] = iterations_per_temp
-            detailed_df["construction_iterations"] = construction_iterations
-            detailed_rows.extend(detailed_df.to_dict(orient="records"))
-
+        print(f" -> mean gap = {mean_gap:.3f}", flush=True)
         return mean_gap
 
-    study = optuna.create_study(
-        direction="minimize",
-        study_name=study_name,
-    )
-    study.optimize(objective, n_trials=n_trials)
+    study.optimize(objective, n_trials=n_trials, n_jobs=n_jobs)
+
+    trial_rows = []
+    detailed_rows = []
+
+    for trial in study.trials:
+        if trial.state != optuna.trial.TrialState.COMPLETE:
+            continue
+
+        params = trial.params
+        trial_rows.append({
+            "trial_number": trial.number,
+            "initial_temp": params.get("initial_temp"),
+            "cooling_rate": params.get("cooling_rate"),
+            "iterations_per_temp": params.get("iterations_per_temp"),
+            "construction_iterations": params.get("construction_iterations"),
+            "mean_gap_pct": trial.value,
+            "mean_obj_val": trial.user_attrs.get("mean_obj_val"),
+        })
+
+        for row in trial.user_attrs.get("detailed_rows", []):
+            detailed_rows.append({
+                "trial_number": trial.number,
+                "initial_temp": params.get("initial_temp"),
+                "cooling_rate": params.get("cooling_rate"),
+                "iterations_per_temp": params.get("iterations_per_temp"),
+                "construction_iterations": params.get("construction_iterations"),
+                **row,
+            })
 
     trials_df = pd.DataFrame(trial_rows).sort_values("mean_gap_pct").reset_index(drop=True)
     detailed_df = pd.DataFrame(detailed_rows)

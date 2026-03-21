@@ -1,4 +1,4 @@
-"""Settings for neighborhood analysis experiments."""
+"""Settings for neighborhood ablation analysis."""
 
 ANALYSIS_INSTANCE_NAMES = ["D", "G", "F", "K"]
 ANALYSIS_SEEDS = [11, 22, 33]
@@ -9,4 +9,7 @@ BASE_NEIGHBORHOOD_WEIGHTS = {
     "swap_restricted": 1.0,
     "remove_reinsert_two": 1.0,
     "ejection_chain_light": 1.0,
+    "pair_relocate_best": 1.0,
+    "swap_two_one": 1.0,
+    "remove_reinsert_three": 1.0,
 }

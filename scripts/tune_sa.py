@@ -17,7 +17,10 @@ from configs.tuning import (
     TUNING_SEEDS,
     TUNING_TIME_LIMIT_SECONDS,
     OPTUNA_N_TRIALS,
+    OPTUNA_N_JOBS,
     OPTUNA_STUDY_NAME,
+    OPTUNA_SEED,
+    OPTUNA_RESET_STUDY,
     INITIAL_TEMP_MIN,
     INITIAL_TEMP_MAX,
     COOLING_RATE_MIN,
@@ -38,12 +41,22 @@ if __name__ == "__main__":
         for name in TUNING_INSTANCE_NAMES
     }
 
+    TABLES_DIR.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+    storage_path = LOGS_DIR / f"{OPTUNA_STUDY_NAME}.db"
+    storage_url = f"sqlite:///{storage_path.resolve().as_posix()}"
+
+    print(f"Starting Optuna tuning with {OPTUNA_N_JOBS} parallel trial workers", flush=True)
+    print(f"Study storage: {storage_path.resolve()}", flush=True)
+
     study, trials_df, detailed_df, best_params = run_optuna_tuning(
         instances=instances,
         tuning_instance_names=TUNING_INSTANCE_NAMES,
         seeds=TUNING_SEEDS,
         time_limit_seconds=TUNING_TIME_LIMIT_SECONDS,
         n_trials=OPTUNA_N_TRIALS,
+        n_jobs=OPTUNA_N_JOBS,
         best_known_soft=BEST_KNOWN_SOFT,
         alpha_balance=ALPHA_BALANCE,
         min_temp=SA_MIN_TEMP,
@@ -58,10 +71,10 @@ if __name__ == "__main__":
         construction_iterations_min=CONSTRUCTION_ITERATIONS_MIN,
         construction_iterations_max=CONSTRUCTION_ITERATIONS_MAX,
         study_name=OPTUNA_STUDY_NAME,
+        storage_url=storage_url,
+        optuna_seed=OPTUNA_SEED,
+        reset_existing_study=OPTUNA_RESET_STUDY,
     )
-
-    TABLES_DIR.mkdir(parents=True, exist_ok=True)
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     trials_path = TABLES_DIR / "sa_tuning_trials.csv"
     detailed_path = TABLES_DIR / "sa_tuning_detailed.csv"

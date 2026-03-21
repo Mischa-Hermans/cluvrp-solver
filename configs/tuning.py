@@ -1,13 +1,17 @@
 """Settings for simulated annealing tuning with Optuna."""
 
-TUNING_INSTANCE_NAMES = ["K", "J"]
-TUNING_SEEDS = [11, 22]
+TUNING_INSTANCE_NAMES = ["K", "J", "F"]
+TUNING_SEEDS = [11, 22, 33]
 
-TUNING_TIME_LIMIT_SECONDS = 60
-OPTUNA_N_TRIALS = 20 
+TUNING_TIME_LIMIT_SECONDS = 30.0
+
+OPTUNA_N_TRIALS = 40
+OPTUNA_N_JOBS = 4
 OPTUNA_STUDY_NAME = "sa_tuning"
+OPTUNA_SEED = 42
+OPTUNA_RESET_STUDY = True
 
-# Search ranges
+# Search ranges for the first tuning pass.
 INITIAL_TEMP_MIN = 20.0
 INITIAL_TEMP_MAX = 500.0
 

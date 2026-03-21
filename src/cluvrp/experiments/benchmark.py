@@ -12,7 +12,7 @@ from src.cluvrp.tracking.checkpoints import best_cost_at_time
 def _run_single_wrapper(args):
     name, instance, i, kwargs = args
 
-    print(f"Running instance {name} ...")
+    print(f"Running instance {name} ...", flush=True)
 
     result = run_single_instance(
         instance=instance,
@@ -26,6 +26,8 @@ def _run_single_wrapper(args):
         min_temp=kwargs["min_temp"],
         max_neighbor_attempts=kwargs["max_neighbor_attempts"],
         neighborhood_weights=kwargs["neighborhood_weights"],
+        method=kwargs["method"],
+        optimizer_kwargs=kwargs["optimizer_kwargs"],
     )
 
     history = result["history"]
@@ -65,8 +67,12 @@ def run_benchmark(
     min_temp: float,
     max_neighbor_attempts: int,
     neighborhood_weights: dict,
+    method: str = "sa",
+    optimizer_kwargs: dict | None = None,
 ):
-    # pack shared kwargs
+    if optimizer_kwargs is None:
+        optimizer_kwargs = {}
+
     kwargs = {
         "checkpoint_seconds": checkpoint_seconds,
         "time_limit_seconds": time_limit_seconds,
@@ -79,6 +85,8 @@ def run_benchmark(
         "min_temp": min_temp,
         "max_neighbor_attempts": max_neighbor_attempts,
         "neighborhood_weights": neighborhood_weights,
+        "method": method,
+        "optimizer_kwargs": optimizer_kwargs,
     }
 
     tasks = [
@@ -86,13 +94,11 @@ def run_benchmark(
         for i, name in enumerate(instance_names)
     ]
 
-    # use all cores minus one
     n_workers = max(1, cpu_count() - 1)
 
     with Pool(processes=n_workers) as pool:
         results = pool.map(_run_single_wrapper, tasks)
 
-    # collect results
     all_runs = {name: res for name, res in results}
 
     results_df = build_results_table(

@@ -10,8 +10,8 @@ SA_MIN_TEMP = 1e-3
 SA_MAX_NEIGHBOR_ATTEMPTS = 250
 
 NEIGHBORHOOD_WEIGHTS = {
-    "relocate_best": 5.0,
-    "swap_restricted": 3.0,
-    "remove_reinsert_two": 2.0,
+    "relocate_best": 1.0,
+    "swap_restricted": 1.0,
+    "remove_reinsert_two": 1.0,
     "ejection_chain_light": 1.0,
 }

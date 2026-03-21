@@ -27,18 +27,18 @@ def propose_neighbor(
 ):
     move_names = [k for k, v in neighborhood_weights.items() if v > 0]
     if not move_names:
-        return None
+        return None, None
 
     move_type = weighted_choice(move_names, neighborhood_weights, rng)
 
     if move_type == "relocate_best":
-        return neighborhood_relocate_best(instance, solution, rng, node_dist)
+        return neighborhood_relocate_best(instance, solution, rng, node_dist), move_type
     if move_type == "swap_restricted":
-        return neighborhood_swap_restricted(instance, solution, rng, node_dist)
+        return neighborhood_swap_restricted(instance, solution, rng, node_dist), move_type
     if move_type == "remove_reinsert_two":
-        return neighborhood_remove_reinsert_two(instance, solution, rng, node_dist)
+        return neighborhood_remove_reinsert_two(instance, solution, rng, node_dist), move_type
     if move_type == "ejection_chain_light":
-        return neighborhood_ejection_chain_light(instance, solution, rng, node_dist)
+        return neighborhood_ejection_chain_light(instance, solution, rng, node_dist), move_type
 
     raise ValueError(f"Unknown neighborhood: {move_type}")
 
@@ -86,13 +86,25 @@ def optimize_with_simulated_annealing(
     accepted_moves = 0
     improving_moves = 0
 
+    operator_stats = {
+        name: {
+            "proposed": 0,
+            "returned_candidate": 0,
+            "accepted": 0,
+            "improving": 0,
+            "new_global_best": 0,
+            "accepted_delta_sum": 0.0,
+        }
+        for name, weight in neighborhood_weights.items() if weight > 0
+    }
+
     while time.perf_counter() - start_time < time_limit_seconds and temperature > min_temp:
         for _ in range(iterations_per_temp):
             elapsed = time.perf_counter() - start_time
             if elapsed >= time_limit_seconds:
                 break
 
-            candidate_solution = propose_neighbor(
+            candidate_solution, move_type = propose_neighbor(
                 instance=instance,
                 solution=current_solution,
                 rng=rng,
@@ -102,8 +114,13 @@ def optimize_with_simulated_annealing(
 
             iterations += 1
 
+            if move_type is not None:
+                operator_stats[move_type]["proposed"] += 1
+
             if candidate_solution is None:
                 continue
+
+            operator_stats[move_type]["returned_candidate"] += 1
 
             delta = candidate_solution.total_cost - current_solution.total_cost
             improving = delta < -1e-12
@@ -121,8 +138,15 @@ def optimize_with_simulated_annealing(
                 current_solution = candidate_solution
                 accepted_moves += 1
 
+                operator_stats[move_type]["accepted"] += 1
+                operator_stats[move_type]["accepted_delta_sum"] += delta
+
+                if improving:
+                    operator_stats[move_type]["improving"] += 1
+
                 if current_solution.total_cost < best_solution.total_cost - 1e-12:
                     best_solution = current_solution.copy()
+                    operator_stats[move_type]["new_global_best"] += 1
 
             record_step(
                 history=history,
@@ -150,4 +174,5 @@ def optimize_with_simulated_annealing(
         "best_solution": best_solution,
         "history": history,
         "stats": stats,
+        "operator_stats": operator_stats,
     }

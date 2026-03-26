@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from copy import deepcopy
 from multiprocessing import Pool, cpu_count
+
 import pandas as pd
+from scipy import stats
 
 from src.cluvrp.experiments.run_single_instance import run_single_instance
 from src.cluvrp.core.evaluation import compute_gap_percent
@@ -19,6 +21,55 @@ def build_operator_weight_sets(base_weights: dict) -> dict:
         weight_sets[f"without_{op}"] = weights
 
     return weight_sets
+
+
+def compute_ablation_pvalues(run_df: pd.DataFrame) -> pd.DataFrame:
+    base_df = run_df[run_df["setting"] == "all"].copy()
+    pvalue_rows = []
+
+    for setting_name in sorted(run_df["setting"].unique()):
+        if setting_name == "all":
+            continue
+
+        compare_df = run_df[run_df["setting"] == setting_name].copy()
+
+        merged = base_df.merge(
+            compare_df,
+            on=["instance", "seed"],
+            suffixes=("_all", "_other"),
+        )
+
+        if merged.empty:
+            continue
+
+        diffs = merged["obj_val_other"] - merged["obj_val_all"]
+
+        if len(diffs) >= 2:
+            t_stat, p_value = stats.ttest_rel(
+                merged["obj_val_other"],
+                merged["obj_val_all"],
+                nan_policy="omit",
+            )
+        else:
+            t_stat, p_value = None, None
+
+        pvalue_rows.append({
+            "setting": setting_name,
+            "mean_diff_obj_val": diffs.mean(),
+            "median_diff_obj_val": diffs.median(),
+            "t_statistic": t_stat,
+            "p_value": p_value,
+            "is_significant_5pct": None if p_value is None else p_value < 0.05,
+            "is_significant_1pct": None if p_value is None else p_value < 0.01,
+            "pairs": len(diffs),
+        })
+
+    pvalues_df = pd.DataFrame(pvalue_rows)
+
+    if not pvalues_df.empty:
+        pvalues_df = pvalues_df.sort_values("p_value", na_position="last").reset_index(drop=True)
+
+    return pvalues_df
 
 
 def _run_single_analysis_task(args):
@@ -56,6 +107,7 @@ def _run_single_analysis_task(args):
         min_temp=min_temp,
         max_neighbor_attempts=max_neighbor_attempts,
         neighborhood_weights=neighborhood_weights,
+        method="sa",
     )
 
     best_known = best_known_soft.get(instance_name)
@@ -71,14 +123,14 @@ def _run_single_analysis_task(args):
     }
 
     operator_rows = []
-    for op_name, stats in result["operator_stats"].items():
-        proposed = stats["proposed"]
-        returned_candidate = stats["returned_candidate"]
-        accepted = stats["accepted"]
-        improving = stats["improving"]
-        new_global_best = stats["new_global_best"]
+    for op_name, op_stats in result["operator_stats"].items():
+        proposed = op_stats["proposed"]
+        returned_candidate = op_stats["returned_candidate"]
+        accepted = op_stats["accepted"]
+        improving = op_stats["improving"]
+        new_global_best = op_stats["new_global_best"]
         avg_accepted_delta = (
-            stats["accepted_delta_sum"] / accepted if accepted > 0 else None
+            op_stats["accepted_delta_sum"] / accepted if accepted > 0 else None
         )
 
         operator_rows.append({
@@ -182,4 +234,6 @@ def run_neighborhood_analysis(
         .reset_index(drop=True)
     )
 
-    return run_df, summary_df, operator_df, operator_summary_df
+    pvalues_df = compute_ablation_pvalues(run_df)
+
+    return run_df, summary_df, operator_df, operator_summary_df, pvalues_df

@@ -14,10 +14,7 @@ from configs.hgs import (
     HGS_OFFSPRING_IMPROVEMENT_TIME_SECONDS,
     HGS_PARENT1_ROUTE_INHERIT_PROB,
 )
-from src.cluvrp.construction.initial_solution import construct_best_initial_solution
-from src.cluvrp.core.distances import build_node_distance_matrix
 from src.cluvrp.metaheuristics.iterated_local_search import optimize_with_iterated_local_search
-from src.cluvrp.routing.route_builder import build_solution_from_superclusters
 from src.cluvrp.tracking.history import initialize_history, record_step
 from src.cluvrp.types import GVRPInstance, RunStats
 
@@ -50,10 +47,7 @@ def diversity_score(solution, population) -> float:
 
 
 def biased_fitness(solution, population) -> tuple[float, float]:
-    """
-    Lower is better.
-    First sort by objective, then break ties with more diversity.
-    """
+    """Lower is better; break objective ties using diversity."""
     return (solution.total_cost, -diversity_score(solution, population))
 
 
@@ -72,7 +66,7 @@ def seed_individual_with_ils(
     perturbation_steps: int,
     time_budget: float,
 ):
-    """Build one individual via short ILS."""
+    """Build one individual via a short ILS run."""
     result = optimize_with_iterated_local_search(
         instance=instance,
         time_limit_seconds=time_budget,
@@ -90,7 +84,13 @@ def seed_individual_with_ils(
     return result["best_solution"].copy()
 
 
-def crossover_superclusters(parent1, parent2, instance, rng: random.Random):
+def crossover_superclusters(
+    parent1,
+    parent2,
+    instance,
+    rng: random.Random,
+    parent1_route_inherit_prob: float,
+):
     """
     Inherit a random subset of superclusters from parent1, then fill the rest from parent2.
     """
@@ -100,18 +100,16 @@ def crossover_superclusters(parent1, parent2, instance, rng: random.Random):
     all_clusters = list(instance.clusters.keys())
     assigned = set()
 
-    # Step 1: inherit some whole routes from parent1
     parent1_route_ids = list(range(n_vehicles))
     rng.shuffle(parent1_route_ids)
 
     for sc_id in parent1_route_ids:
-        if rng.random() <= HGS_PARENT1_ROUTE_INHERIT_PROB:
+        if rng.random() <= parent1_route_inherit_prob:
             for r in parent1.superclusters[sc_id]:
                 if r not in assigned:
                     child_superclusters[sc_id].append(r)
                     assigned.add(r)
 
-    # Step 2: insert remaining clusters following parent2 assignments when possible
     remaining = [r for r in all_clusters if r not in assigned]
     rng.shuffle(remaining)
 
@@ -135,13 +133,11 @@ def crossover_superclusters(parent1, parent2, instance, rng: random.Random):
         if preferred_sc in feasible:
             chosen_sc = preferred_sc
         else:
-            # Put it into the least loaded feasible route.
             chosen_sc = min(feasible, key=lambda sc_id: loads[sc_id])
 
         child_superclusters[chosen_sc].append(r)
         loads[chosen_sc] += demand
 
-    # Safety check
     assigned_final = sorted(r for sc in child_superclusters for r in sc)
     if assigned_final != sorted(all_clusters):
         return None
@@ -150,9 +146,7 @@ def crossover_superclusters(parent1, parent2, instance, rng: random.Random):
 
 
 def mutate_superclusters(instance, superclusters, rng: random.Random):
-    """
-    Small mutation before local improvement: move one random cluster if capacity allows.
-    """
+    """Small mutation before local improvement: move one random cluster if capacity allows."""
     superclusters = [sc[:] for sc in superclusters]
     n_vehicles = len(superclusters)
     loads = [
@@ -182,48 +176,8 @@ def mutate_superclusters(instance, superclusters, rng: random.Random):
     return [sorted(sc) for sc in superclusters]
 
 
-def improve_offspring_with_ils(
-    instance,
-    offspring_superclusters,
-    node_dist,
-    seed: int,
-    alpha_balance: float,
-    construction_iterations: int,
-    neighborhood_weights: dict,
-    perturbation_steps: int,
-    time_budget: float,
-):
-    """
-    Evaluate repaired offspring and improve it with short ILS.
-    We keep the better of:
-    - direct offspring evaluation
-    - short ILS-improved solution
-    """
-    offspring_solution = build_solution_from_superclusters(
-        instance=instance,
-        superclusters=offspring_superclusters,
-        node_dist=node_dist,
-    )
-
-    ils_solution = seed_individual_with_ils(
-        instance=instance,
-        seed=seed,
-        alpha_balance=alpha_balance,
-        construction_iterations=construction_iterations,
-        neighborhood_weights=neighborhood_weights,
-        perturbation_steps=perturbation_steps,
-        time_budget=time_budget,
-    )
-
-    if offspring_solution.total_cost < ils_solution.total_cost:
-        return offspring_solution
-    return ils_solution
-
-
 def survivor_selection(population, max_size: int):
-    """
-    Keep unique individuals first, then rank by objective/diversity.
-    """
+    """Keep unique individuals first, then rank by objective and diversity."""
     unique = []
     seen = set()
 
@@ -250,6 +204,12 @@ def optimize_with_hybrid_genetic_search(
     max_neighbor_attempts: int,
     neighborhood_weights: Optional[dict] = None,
     perturbation_steps: int = 2,
+    population_size: int = HGS_POPULATION_SIZE,
+    elite_size: int = HGS_ELITE_SIZE,
+    tournament_size: int = HGS_TOURNAMENT_SIZE,
+    initial_individual_time_seconds: float = HGS_INITIAL_INDIVIDUAL_TIME_SECONDS,
+    offspring_improvement_time_seconds: float = HGS_OFFSPRING_IMPROVEMENT_TIME_SECONDS,
+    parent1_route_inherit_prob: float = HGS_PARENT1_ROUTE_INHERIT_PROB,
 ):
     # Shared interface with SA / ILS; unused here.
     del initial_temp
@@ -269,74 +229,94 @@ def optimize_with_hybrid_genetic_search(
             "remove_reinsert_three": 1.0,
         }
 
+    population_size = max(2, int(population_size))
+    elite_size = max(1, min(int(elite_size), population_size - 1))
+    tournament_size = max(2, int(tournament_size))
+    initial_individual_time_seconds = max(0.1, float(initial_individual_time_seconds))
+    offspring_improvement_time_seconds = max(0.1, float(offspring_improvement_time_seconds))
+    parent1_route_inherit_prob = min(1.0, max(0.0, float(parent1_route_inherit_prob)))
+
     start_time = time.perf_counter()
     rng = random.Random(base_seed)
-    node_dist = build_node_distance_matrix(instance.coords)
 
     history = None
     population = []
 
     # ---- Initial population ----
-    for i in range(HGS_POPULATION_SIZE):
+    for i in range(population_size):
         if time.perf_counter() - start_time >= time_limit_seconds:
             break
 
-        individual = seed_individual_with_ils(
-            instance=instance,
-            seed=base_seed + i,
-            alpha_balance=alpha_balance,
-            construction_iterations=construction_iterations,
-            neighborhood_weights=neighborhood_weights,
-            perturbation_steps=perturbation_steps,
-            time_budget=HGS_INITIAL_INDIVIDUAL_TIME_SECONDS,
-        )
-        population.append(individual)
+        try:
+            individual = seed_individual_with_ils(
+                instance=instance,
+                seed=base_seed + i,
+                alpha_balance=alpha_balance,
+                construction_iterations=construction_iterations,
+                neighborhood_weights=neighborhood_weights,
+                perturbation_steps=perturbation_steps,
+                time_budget=initial_individual_time_seconds,
+            )
+            population.append(individual)
+        except RuntimeError:
+            continue
 
     if not population:
         raise RuntimeError("HGS could not build an initial population.")
 
-    population = survivor_selection(population, HGS_POPULATION_SIZE)
+    population = survivor_selection(population, population_size)
 
     best_solution = min(population, key=lambda s: s.total_cost).copy()
     initial_solution = best_solution.copy()
     history = initialize_history(best_solution.total_cost)
 
     generations = 0
+    offspring_created = 0
+    offspring_improved_best = 0
 
     # ---- Evolution loop ----
     while time.perf_counter() - start_time < time_limit_seconds:
-        new_population = population[: min(HGS_ELITE_SIZE, len(population))]
+        new_population = population[: min(elite_size, len(population))]
 
         while (
-            len(new_population) < HGS_POPULATION_SIZE
+            len(new_population) < population_size
             and time.perf_counter() - start_time < time_limit_seconds
         ):
-            parent1 = tournament_selection(population, rng, HGS_TOURNAMENT_SIZE)
-            parent2 = tournament_selection(population, rng, HGS_TOURNAMENT_SIZE)
+            parent1 = tournament_selection(population, rng, tournament_size)
+            parent2 = tournament_selection(population, rng, tournament_size)
 
-            offspring_superclusters = crossover_superclusters(parent1, parent2, instance, rng)
+            offspring_superclusters = crossover_superclusters(
+                parent1=parent1,
+                parent2=parent2,
+                instance=instance,
+                rng=rng,
+                parent1_route_inherit_prob=parent1_route_inherit_prob,
+            )
             if offspring_superclusters is None:
                 continue
 
             offspring_superclusters = mutate_superclusters(instance, offspring_superclusters, rng)
 
-            offspring = improve_offspring_with_ils(
-                instance=instance,
-                offspring_superclusters=offspring_superclusters,
-                node_dist=node_dist,
-                seed=rng.randint(0, 1_000_000),
-                alpha_balance=alpha_balance,
-                construction_iterations=construction_iterations,
-                neighborhood_weights=neighborhood_weights,
-                perturbation_steps=perturbation_steps,
-                time_budget=HGS_OFFSPRING_IMPROVEMENT_TIME_SECONDS,
-            )
+            try:
+                offspring = seed_individual_with_ils(
+                    instance=instance,
+                    seed=rng.randint(0, 1_000_000),
+                    alpha_balance=alpha_balance,
+                    construction_iterations=construction_iterations,
+                    neighborhood_weights=neighborhood_weights,
+                    perturbation_steps=perturbation_steps,
+                    time_budget=offspring_improvement_time_seconds,
+                )
+            except RuntimeError:
+                continue
 
             new_population.append(offspring)
+            offspring_created += 1
 
             improving = offspring.total_cost < best_solution.total_cost - 1e-12
             if improving:
                 best_solution = offspring.copy()
+                offspring_improved_best += 1
 
             record_step(
                 history=history,
@@ -349,15 +329,15 @@ def optimize_with_hybrid_genetic_search(
             )
 
         population.extend(new_population)
-        population = survivor_selection(population, HGS_POPULATION_SIZE)
+        population = survivor_selection(population, population_size)
         generations += 1
 
     elapsed = time.perf_counter() - start_time
     stats = RunStats(
         elapsed_time=elapsed,
         iterations=generations,
-        accepted_moves=0,
-        improving_moves=0,
+        accepted_moves=offspring_created,
+        improving_moves=offspring_improved_best,
         final_temperature=0.0,
     )
 

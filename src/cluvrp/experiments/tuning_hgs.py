@@ -1,4 +1,4 @@
-"""Run Optuna tuning for iterated local search."""
+"""Run Optuna tuning for hybrid genetic search."""
 
 from __future__ import annotations
 
@@ -12,16 +12,22 @@ from src.cluvrp.core.evaluation import compute_gap_percent
 from src.cluvrp.experiments.run_single_instance import run_single_instance
 
 
-def evaluate_ils_config(
+def evaluate_hgs_config(
     instances: dict,
     tuning_instance_names: list[str],
     seeds: list[int],
     time_limit_seconds: float,
     best_known_soft: dict,
     alpha_balance: float,
+    neighborhood_weights: dict,
     construction_iterations: int,
     perturbation_steps: int,
-    neighborhood_weights: dict,
+    population_size: int,
+    elite_size: int,
+    tournament_size: int,
+    initial_individual_time_seconds: float,
+    offspring_improvement_time_seconds: float,
+    parent1_route_inherit_prob: float,
 ):
     detailed_rows = []
     gaps = []
@@ -44,9 +50,15 @@ def evaluate_ils_config(
                 min_temp=0.0,
                 max_neighbor_attempts=0,
                 neighborhood_weights=neighborhood_weights,
-                method="ils",
+                method="hgs",
                 optimizer_kwargs={
                     "perturbation_steps": perturbation_steps,
+                    "population_size": population_size,
+                    "elite_size": elite_size,
+                    "tournament_size": tournament_size,
+                    "initial_individual_time_seconds": initial_individual_time_seconds,
+                    "offspring_improvement_time_seconds": offspring_improvement_time_seconds,
+                    "parent1_route_inherit_prob": parent1_route_inherit_prob,
                 },
             )
 
@@ -70,7 +82,7 @@ def evaluate_ils_config(
     return mean_gap, mean_obj, detailed_rows
 
 
-def run_optuna_tuning_ils(
+def run_optuna_tuning_hgs(
     instances: dict,
     tuning_instance_names: list[str],
     seeds: list[int],
@@ -80,11 +92,23 @@ def run_optuna_tuning_ils(
     best_known_soft: dict,
     alpha_balance: float,
     neighborhood_weights: dict,
+    population_size_min: int,
+    population_size_max: int,
+    elite_size_min: int,
+    elite_size_max: int,
+    tournament_size_min: int,
+    tournament_size_max: int,
+    initial_individual_time_min: float,
+    initial_individual_time_max: float,
+    offspring_improvement_time_min: float,
+    offspring_improvement_time_max: float,
+    parent1_route_inherit_prob_min: float,
+    parent1_route_inherit_prob_max: float,
     perturbation_steps_min: int,
     perturbation_steps_max: int,
     construction_iterations_min: int,
     construction_iterations_max: int,
-    study_name: str = "ils_tuning",
+    study_name: str = "hgs_tuning",
     storage_url: str | None = None,
     optuna_seed: int | None = None,
     reset_existing_study: bool = False,
@@ -106,6 +130,24 @@ def run_optuna_tuning_ils(
     )
 
     def objective(trial: optuna.Trial) -> float:
+        population_size = trial.suggest_int("population_size", population_size_min, population_size_max)
+        elite_size = trial.suggest_int("elite_size", elite_size_min, min(elite_size_max, population_size - 1))
+        tournament_size = trial.suggest_int("tournament_size", tournament_size_min, tournament_size_max)
+        initial_individual_time_seconds = trial.suggest_float(
+            "initial_individual_time_seconds",
+            initial_individual_time_min,
+            initial_individual_time_max,
+        )
+        offspring_improvement_time_seconds = trial.suggest_float(
+            "offspring_improvement_time_seconds",
+            offspring_improvement_time_min,
+            offspring_improvement_time_max,
+        )
+        parent1_route_inherit_prob = trial.suggest_float(
+            "parent1_route_inherit_prob",
+            parent1_route_inherit_prob_min,
+            parent1_route_inherit_prob_max,
+        )
         perturbation_steps = trial.suggest_int(
             "perturbation_steps",
             perturbation_steps_min,
@@ -119,20 +161,29 @@ def run_optuna_tuning_ils(
 
         print(
             f"Trial {trial.number}: "
-            f"perturb={perturbation_steps}, construct={construction_iterations}",
+            f"pop={population_size}, elite={elite_size}, tourn={tournament_size}, "
+            f"init={initial_individual_time_seconds:.2f}, child={offspring_improvement_time_seconds:.2f}, "
+            f"inherit={parent1_route_inherit_prob:.2f}, perturb={perturbation_steps}, "
+            f"construct={construction_iterations}",
             flush=True,
         )
 
-        mean_gap, mean_obj, detailed_rows = evaluate_ils_config(
+        mean_gap, mean_obj, detailed_rows = evaluate_hgs_config(
             instances=instances,
             tuning_instance_names=tuning_instance_names,
             seeds=seeds,
             time_limit_seconds=time_limit_seconds,
             best_known_soft=best_known_soft,
             alpha_balance=alpha_balance,
+            neighborhood_weights=neighborhood_weights,
             construction_iterations=construction_iterations,
             perturbation_steps=perturbation_steps,
-            neighborhood_weights=neighborhood_weights,
+            population_size=population_size,
+            elite_size=elite_size,
+            tournament_size=tournament_size,
+            initial_individual_time_seconds=initial_individual_time_seconds,
+            offspring_improvement_time_seconds=offspring_improvement_time_seconds,
+            parent1_route_inherit_prob=parent1_route_inherit_prob,
         )
 
         trial.set_user_attr("mean_obj_val", mean_obj)
@@ -153,6 +204,12 @@ def run_optuna_tuning_ils(
         params = trial.params
         trial_rows.append({
             "trial_number": trial.number,
+            "population_size": params.get("population_size"),
+            "elite_size": params.get("elite_size"),
+            "tournament_size": params.get("tournament_size"),
+            "initial_individual_time_seconds": params.get("initial_individual_time_seconds"),
+            "offspring_improvement_time_seconds": params.get("offspring_improvement_time_seconds"),
+            "parent1_route_inherit_prob": params.get("parent1_route_inherit_prob"),
             "perturbation_steps": params.get("perturbation_steps"),
             "construction_iterations": params.get("construction_iterations"),
             "mean_gap_pct": trial.value,
@@ -162,8 +219,7 @@ def run_optuna_tuning_ils(
         for row in trial.user_attrs.get("detailed_rows", []):
             detailed_rows.append({
                 "trial_number": trial.number,
-                "perturbation_steps": params.get("perturbation_steps"),
-                "construction_iterations": params.get("construction_iterations"),
+                **{k: params.get(k) for k in params},
                 **row,
             })
 

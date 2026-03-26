@@ -15,12 +15,12 @@ from src.cluvrp.io.instance_reader import get_instance_path, read_gvrp_instance
 from src.cluvrp.experiments.run_single_instance import run_single_instance 
 
 if __name__ == "__main__":
-    instance_name = "I"
+    instance_name = "K"
     instance = read_gvrp_instance(get_instance_path(instance_name, INSTANCE_DIRS))
 
     result = run_single_instance(
         instance=instance,
-        time_limit_seconds=50.0,
+        time_limit_seconds=30.0,
         base_seed=42,
         alpha_balance=ALPHA_BALANCE,
         construction_iterations=CONSTRUCTION_ITERATIONS,

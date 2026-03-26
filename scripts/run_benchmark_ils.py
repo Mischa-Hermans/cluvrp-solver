@@ -57,8 +57,8 @@ if __name__ == "__main__":
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    csv_path = TABLES_DIR / "soft_cluvrp_ils_results_A_to_K.csv"
-    pkl_path = LOGS_DIR / "benchmark_runs_ils.pkl"
+    csv_path = TABLES_DIR / "hard_cluvrp_ils_results_A_to_K.csv"
+    pkl_path = LOGS_DIR / "hard_benchmark_runs_ils.pkl"
 
     save_dataframe_csv(results_df, csv_path)
     save_pickle(all_runs, pkl_path)

@@ -64,6 +64,7 @@ def optimize_with_simulated_annealing(
     min_temp: float,
     max_neighbor_attempts: int,
     neighborhood_weights: Optional[dict] = None,
+    init_mode: str = "proposed",
 ):
     if neighborhood_weights is None:
         neighborhood_weights = {
@@ -87,6 +88,7 @@ def optimize_with_simulated_annealing(
         base_seed=base_seed,
         construction_iterations=construction_iterations,
         alpha_balance=alpha_balance,
+        init_mode=init_mode,
     )
 
     current_solution = initial_solution.copy()

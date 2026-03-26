@@ -21,7 +21,7 @@ if __name__ == "__main__":
         for name in INSTANCE_NAMES
     }
 
-    pkl_path = LOGS_DIR / "benchmark_runs_ils.pkl"
+    pkl_path = LOGS_DIR / "benchmark_runs_hgs.pkl"
     all_runs = load_pickle(pkl_path)
 
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,16 +46,16 @@ if __name__ == "__main__":
 
         plot_final_routes(instance, initial_solution, ax=axes[1, 0])
         axes[1, 0].set_title(
-            f"{instance.name} – initial routes (before ILS)\nCost = {init_cost:.2f}"
+            f"{instance.name} – initial routes (before HGS)\nCost = {init_cost:.2f}"
         )
 
         plot_final_routes(instance, best_solution, ax=axes[1, 1])
         axes[1, 1].set_title(
-            f"{instance.name} – final routes (after ILS)\nCost = {final_cost:.2f}"
+            f"{instance.name} – final routes (after HGS)\nCost = {final_cost:.2f}"
         )
 
         plt.tight_layout()
-        plt.savefig(PLOTS_DIR / f"{instance_name}_overview_ILS.png", dpi=200)
+        plt.savefig(PLOTS_DIR / f"{instance_name}_overview_HGS.png", dpi=200)
         plt.close()
 
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             title=f"{instance.name} – convergence (best-so-far)",
         )
         plt.tight_layout()
-        plt.savefig(PLOTS_DIR / f"{instance_name}_convergence_ILS.png", dpi=200)
+        plt.savefig(PLOTS_DIR / f"{instance_name}_convergence_HGS.png", dpi=200)
         plt.close()
 
         print(f"Saved plots for instance {instance_name}")

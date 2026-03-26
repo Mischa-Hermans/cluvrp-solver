@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from configs.routing import ROUTING_VARIANT
 from src.cluvrp.core.evaluation import compute_gap_percent, rename_result_columns
 
 
@@ -26,8 +27,14 @@ def build_results_table(
 
         for t in checkpoint_seconds:
             obj = round(run["checkpoint_costs"][t], 3)
-            best = best_known_soft.get(name)
+
+            if ROUTING_VARIANT == "hard":
+                best = best_known_hard.get(name)
+            else:
+                best = best_known_soft.get(name)
+
             gap = None if best is None else round(compute_gap_percent(obj, best), 3)
+
             record[f"{t}s_obj_val"] = obj
             record[f"{t}s_gap_pct"] = gap
 

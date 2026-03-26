@@ -15,11 +15,13 @@ def construct_initial_solution(
     rng: random.Random,
     node_dist,
     alpha_balance: float,
+    init_mode: str = "proposed",
 ) -> Solution:
     superclusters, _, _ = construct_superclusters(
         instance=instance,
         rng=rng,
         alpha_balance=alpha_balance,
+        init_mode=init_mode,
     )
     return build_solution_from_superclusters(instance, superclusters, node_dist)
 
@@ -29,6 +31,7 @@ def construct_best_initial_solution(
     base_seed: int,
     construction_iterations: int,
     alpha_balance: float,
+    init_mode: str = "proposed",
 ) -> Solution:
     if construction_iterations < 1:
         raise ValueError("construction_iterations must be at least 1")
@@ -49,16 +52,38 @@ def construct_best_initial_solution(
                 rng=rng,
                 node_dist=node_dist,
                 alpha_balance=alpha_balance,
+                init_mode=init_mode,
             )
             solution.construction_seed = seed
 
             if solution.total_cost < best_cost:
                 best_cost = solution.total_cost
                 best_solution = solution
+
         except RuntimeError:
-            pass
+            continue
 
     if best_solution is None:
-        raise RuntimeError("No feasible initial solution could be constructed.")
+        max_attempts = construction_iterations * 5
+
+        for _ in range(max_attempts):
+            seed = rng_master.randint(0, 10**9)
+            rng = random.Random(seed)
+
+            try:
+                solution = construct_initial_solution(
+                    instance=instance,
+                    rng=rng,
+                    node_dist=node_dist,
+                    alpha_balance=alpha_balance,
+                    init_mode=init_mode,
+                )
+                solution.construction_seed = seed
+                return solution
+
+            except RuntimeError:
+                continue
+
+        raise RuntimeError("No feasible initial solution could be constructed after retries.")
 
     return best_solution

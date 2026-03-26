@@ -9,10 +9,10 @@ from configs.default import (
     LOGS_DIR,
 )
 from configs.sa import ALPHA_BALANCE
-from configs.ils import (
-    ILS_CONSTRUCTION_ITERATIONS,
-    ILS_NEIGHBORHOOD_WEIGHTS,
-    ILS_PERTURBATION_STEPS,
+from configs.hgs import (
+    HGS_CONSTRUCTION_ITERATIONS,
+    HGS_NEIGHBORHOOD_WEIGHTS,
+    HGS_PERTURBATION_STEPS,
 )
 from configs.benchmark import (
     CHECKPOINT_SECONDS,
@@ -38,24 +38,24 @@ if __name__ == "__main__":
         best_known_soft=BEST_KNOWN_SOFT,
         best_known_hard=BEST_KNOWN_HARD,
         alpha_balance=ALPHA_BALANCE,
-        construction_iterations=ILS_CONSTRUCTION_ITERATIONS,
+        construction_iterations=HGS_CONSTRUCTION_ITERATIONS,
         initial_temp=0.0,
         cooling_rate=0.0,
         iterations_per_temp=0,
         min_temp=0.0,
         max_neighbor_attempts=0,
-        neighborhood_weights=ILS_NEIGHBORHOOD_WEIGHTS,
+        neighborhood_weights=HGS_NEIGHBORHOOD_WEIGHTS,
         method="hgs",
         optimizer_kwargs={
-            "perturbation_steps": ILS_PERTURBATION_STEPS,
+            "perturbation_steps": HGS_PERTURBATION_STEPS,
         },
     )
 
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    csv_path = TABLES_DIR / "soft_cluvrp_hgs_results_A_to_K.csv"
-    pkl_path = LOGS_DIR / "benchmark_runs_hgs.pkl"
+    csv_path = TABLES_DIR / "hard_cluvrp_hgs_results_A_to_K.csv"
+    pkl_path = LOGS_DIR / "hard_benchmark_runs_hgs.pkl"
 
     save_dataframe_csv(results_df, csv_path)
     save_pickle(all_runs, pkl_path)

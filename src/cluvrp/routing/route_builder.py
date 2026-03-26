@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import random
+
+from configs.routing import ROUTING_SOLVER, ROUTING_VARIANT, HYBRID_EXACT_MAX_CUSTOMERS
 from src.cluvrp.core.feasibility import feasible_load
+from src.cluvrp.core.evaluation import route_length
 from src.cluvrp.types import GVRPInstance, Solution
 from src.cluvrp.routing.tsp_exact import exact_tsp_gurobi
+from src.cluvrp.routing.tsp_heuristics import nearest_neighbor_tour, two_opt
 
 
 def customers_of_supercluster(instance: GVRPInstance, sc_clusters: list[int]) -> list[int]:
@@ -26,13 +31,68 @@ def compute_loads(instance: GVRPInstance, superclusters: list[list[int]]) -> lis
     return [sum(instance.cluster_demands[r] for r in sc) for sc in superclusters]
 
 
-def evaluate_supercluster_exact(
+def heuristic_tsp_route(
+    customers: list[int],
+    depot: int,
+    node_dist,
+):
+    # Fixed seed so route evaluation stays deterministic.
+    rng = random.Random(0)
+    route = nearest_neighbor_tour(customers, depot, node_dist, rng)
+    route = two_opt(route, node_dist)
+    cost = route_length(route, node_dist)
+    return route, cost
+
+
+def evaluate_supercluster_route(
     instance: GVRPInstance,
     sc_clusters: list[int],
     node_dist,
 ):
     customers = customers_of_supercluster(instance, sc_clusters)
-    route, cost = exact_tsp_gurobi(customers, instance.depot, node_dist)
+    cluster_customer_sets = [instance.clusters[r] for r in sc_clusters]
+
+    if ROUTING_VARIANT == "soft":
+        hard_cluster_sets = None
+    elif ROUTING_VARIANT == "hard":
+        hard_cluster_sets = cluster_customer_sets
+    else:
+        raise ValueError(f"Unknown ROUTING_VARIANT: {ROUTING_VARIANT}")
+
+    if ROUTING_SOLVER == "exact":
+        route, cost = exact_tsp_gurobi(
+            customers,
+            instance.depot,
+            node_dist,
+            cluster_customer_sets=hard_cluster_sets,
+        )
+
+    elif ROUTING_SOLVER == "heuristic":
+        if ROUTING_VARIANT == "hard":
+            raise NotImplementedError(
+                "Hard CluVRP is currently only supported with exact routing."
+            )
+        route, cost = heuristic_tsp_route(customers, instance.depot, node_dist)
+
+    elif ROUTING_SOLVER == "hybrid":
+        if len(customers) <= HYBRID_EXACT_MAX_CUSTOMERS:
+            route, cost = exact_tsp_gurobi(
+                customers,
+                instance.depot,
+                node_dist,
+                cluster_customer_sets=hard_cluster_sets,
+            )
+        else:
+            if ROUTING_VARIANT == "hard":
+                raise NotImplementedError(
+                    "Hard CluVRP with hybrid routing is only supported when the "
+                    "supercluster is small enough for exact routing."
+                )
+            route, cost = heuristic_tsp_route(customers, instance.depot, node_dist)
+
+    else:
+        raise ValueError(f"Unknown ROUTING_SOLVER: {ROUTING_SOLVER}")
+
     return route, cost, customers
 
 
@@ -50,7 +110,7 @@ def build_solution_from_superclusters(
     supercluster_customers = []
 
     for sc in superclusters:
-        route, cost, customers = evaluate_supercluster_exact(instance, sc, node_dist)
+        route, cost, customers = evaluate_supercluster_route(instance, sc, node_dist)
         routes.append(route)
         route_costs.append(cost)
         supercluster_customers.append(customers)
@@ -85,7 +145,7 @@ def reoptimize_affected_superclusters(
         if load > instance.capacity:
             raise ValueError(f"Infeasible move: load {load} exceeds capacity {instance.capacity}")
 
-        route, cost, customers = evaluate_supercluster_exact(instance, sc, node_dist)
+        route, cost, customers = evaluate_supercluster_route(instance, sc, node_dist)
         new_loads[sc_id] = load
         new_routes[sc_id] = route
         new_route_costs[sc_id] = cost

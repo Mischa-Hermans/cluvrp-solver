@@ -29,6 +29,7 @@ def construct_superclusters(
     instance: GVRPInstance,
     rng: random.Random,
     alpha_balance: float,
+    init_mode: str = "proposed",
 ) -> Tuple[List[List[int]], List[int], Dict[int, int]]:
     check_instance_feasibility(instance)
 
@@ -61,8 +62,19 @@ def construct_superclusters(
         if not candidate_moves:
             raise RuntimeError("Construction got stuck; try another seed.")
 
-        candidate_moves.sort(key=lambda x: x[0])
-        _, r, sc_id = rng.choice(candidate_moves[: min(4, len(candidate_moves))])
+        candidate_moves.sort(key=lambda x: (x[0], x[1], x[2]))
+
+        if init_mode == "random":
+            _, r, sc_id = rng.choice(candidate_moves)
+
+        elif init_mode == "greedy":
+            _, r, sc_id = candidate_moves[0]
+
+        elif init_mode == "proposed":
+            _, r, sc_id = rng.choice(candidate_moves[: min(4, len(candidate_moves))])
+
+        else:
+            raise ValueError(f"Unknown init_mode: {init_mode}")
 
         superclusters[sc_id].append(r)
         loads[sc_id] += instance.cluster_demands[r]

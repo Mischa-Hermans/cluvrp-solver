@@ -31,7 +31,7 @@ if __name__ == "__main__":
         for name in ANALYSIS_INSTANCE_NAMES
     }
 
-    run_df, summary_df, operator_df, operator_summary_df = run_neighborhood_analysis(
+    run_df, summary_df, operator_df, operator_summary_df, pvalues_df = run_neighborhood_analysis(
         instances=instances,
         instance_names=ANALYSIS_INSTANCE_NAMES,
         seeds=ANALYSIS_SEEDS,
@@ -49,12 +49,17 @@ if __name__ == "__main__":
 
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
 
-    save_dataframe_csv(run_df, TABLES_DIR / "neighborhood_analysis_runs.csv")
-    save_dataframe_csv(summary_df, TABLES_DIR / "neighborhood_analysis_summary.csv")
-    save_dataframe_csv(operator_df, TABLES_DIR / "neighborhood_operator_stats_runs.csv")
-    save_dataframe_csv(operator_summary_df, TABLES_DIR / "neighborhood_operator_stats_summary.csv")
+    save_dataframe_csv(run_df, TABLES_DIR / "marginal_neighborhood_analysis_runs.csv")
+    save_dataframe_csv(summary_df, TABLES_DIR / "marginal_neighborhood_analysis_summary.csv")
+    save_dataframe_csv(operator_df, TABLES_DIR / "marginal_neighborhood_operator_stats_runs.csv")
+    save_dataframe_csv(operator_summary_df, TABLES_DIR / "marginal_neighborhood_operator_stats_summary.csv")
+    save_dataframe_csv(pvalues_df, TABLES_DIR / "marginal_neighborhood_analysis_pvalues.csv")
 
     print("\nAblation summary:")
     print(summary_df)
+
     print("\nOperator summary:")
     print(operator_summary_df)
+
+    print("\nAblation p-values:")
+    print(pvalues_df)

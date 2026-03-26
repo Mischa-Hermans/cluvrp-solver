@@ -2,33 +2,33 @@
 
 from configs.default import INSTANCE_DIRS
 from configs.sa import ALPHA_BALANCE
-from configs.ils import (
-    ILS_CONSTRUCTION_ITERATIONS,
-    ILS_NEIGHBORHOOD_WEIGHTS,
-    ILS_PERTURBATION_STEPS,
+from configs.hgs import (
+    HGS_CONSTRUCTION_ITERATIONS,
+    HGS_NEIGHBORHOOD_WEIGHTS,
+    HGS_PERTURBATION_STEPS,
 )
 from src.cluvrp.io.instance_reader import get_instance_path, read_gvrp_instance
 from src.cluvrp.experiments.run_single_instance import run_single_instance
 
 if __name__ == "__main__":
-    instance_name = "D"
+    instance_name = "J"
     instance = read_gvrp_instance(get_instance_path(instance_name, INSTANCE_DIRS))
 
     result = run_single_instance(
         instance=instance,
-        time_limit_seconds=200.0,
+        time_limit_seconds=30.0,
         base_seed=42,
         alpha_balance=ALPHA_BALANCE,
-        construction_iterations=ILS_CONSTRUCTION_ITERATIONS,
+        construction_iterations=HGS_CONSTRUCTION_ITERATIONS,
         initial_temp=0.0,
         cooling_rate=0.0,
         iterations_per_temp=0,
         min_temp=0.0,
         max_neighbor_attempts=0,
-        neighborhood_weights=ILS_NEIGHBORHOOD_WEIGHTS,
+        neighborhood_weights=HGS_NEIGHBORHOOD_WEIGHTS,
         method="hgs",
         optimizer_kwargs={
-            "perturbation_steps": ILS_PERTURBATION_STEPS,
+            "perturbation_steps": HGS_PERTURBATION_STEPS,
         },
     )
 

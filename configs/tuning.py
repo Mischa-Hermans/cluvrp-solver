@@ -1,9 +1,9 @@
 """Settings for simulated annealing tuning with Optuna."""
 
-TUNING_INSTANCE_NAMES = ["K", "J", "F"]
+TUNING_INSTANCE_NAMES = ["D", "G", "I","K"]
 TUNING_SEEDS = [11, 22, 33]
 
-TUNING_TIME_LIMIT_SECONDS = 30.0
+TUNING_TIME_LIMIT_SECONDS = 60.0
 
 OPTUNA_N_TRIALS = 40
 OPTUNA_N_JOBS = 4

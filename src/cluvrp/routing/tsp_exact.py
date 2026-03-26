@@ -15,6 +15,7 @@ def exact_tsp_gurobi(
     depot: int,
     dist: Dict[int, Dict[int, float]],
     time_limit: Optional[float] = None,
+    cluster_customer_sets: Optional[List[List[int]]] = None,
 ) -> Tuple[List[int], float]:
     if not customers:
         return [depot, depot], 0.0
@@ -26,6 +27,7 @@ def exact_tsp_gurobi(
     nodes = [depot] + customers
     n = len(nodes)
     idx_to_node = {i: node for i, node in enumerate(nodes)}
+    node_to_idx = {node: i for i, node in idx_to_node.items()}
 
     env = gp.Env(empty=True)
     env.setParam("OutputFlag", 0)
@@ -47,9 +49,32 @@ def exact_tsp_gurobi(
 
     model.update()
 
+    # Degree constraints
     for i in range(n):
         expr = gp.quicksum(x[min(i, j), max(i, j)] for j in range(n) if j != i)
         model.addConstr(expr == 2, name=f"deg_{i}")
+
+    # Hard-CluVRP cluster contiguity constraints:
+    # each cluster must be entered once and exited once,
+    # which in an undirected Hamiltonian cycle means exactly two cut edges.
+    if cluster_customer_sets is not None:
+        all_idx = set(range(n))
+
+        for cluster_id, cluster_customers in enumerate(cluster_customer_sets):
+            cluster_idx = {node_to_idx[c] for c in cluster_customers if c in node_to_idx}
+
+            # Ignore empty clusters just in case
+            if not cluster_idx:
+                continue
+
+            outside_idx = all_idx - cluster_idx
+
+            expr = gp.quicksum(
+                x[min(i, j), max(i, j)]
+                for i in cluster_idx
+                for j in outside_idx
+            )
+            model.addConstr(expr == 2, name=f"cluster_cut_{cluster_id}")
 
     def selected_edges():
         return [(i, j) for (i, j), var in x.items() if var.X > 0.5]

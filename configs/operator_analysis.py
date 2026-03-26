@@ -1,7 +1,7 @@
 """Settings for neighborhood ablation analysis."""
 
 ANALYSIS_INSTANCE_NAMES = ["D", "G", "F", "K"]
-ANALYSIS_SEEDS = [11, 22, 33]
+ANALYSIS_SEEDS = [11, 22, 33, 44, 55, 66, 77]
 ANALYSIS_TIME_LIMIT_SECONDS = 60.0
 
 BASE_NEIGHBORHOOD_WEIGHTS = {

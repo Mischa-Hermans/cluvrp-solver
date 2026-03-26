@@ -6,6 +6,10 @@ __pycache__/
 .venv/
 venv/
 .env
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 results/
 !.gitkeep
 gurobi.log

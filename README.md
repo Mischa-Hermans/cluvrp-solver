@@ -298,4 +298,4 @@ Elapsed time: 300.02s
 
 ## Gurobi license error
 
-You can use the Gurobi python function upto a certain problem size, if the size is exceeded there will be an error telling you to get a Gurobi license.
+You can use the Gurobi python function up to a certain problem size, if the size is exceeded there will be an error telling you to get a Gurobi license. After getting the license the code can be rerun.

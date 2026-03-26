@@ -61,7 +61,7 @@ cluvrp-solver/
 Via the terminal clone the repository and install dependencies:
 
 ```bash
-git clone <[repo-link](https://github.com/Mischa-Hermans/cluvrp-solver.git)>
+git clone https://github.com/Mischa-Hermans/cluvrp-solver.git
 cd cluvrp-solver
 pip install -r requirements.txt
 ```

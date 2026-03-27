@@ -12,3 +12,4 @@ venv/
 Thumbs.db
 !.gitkeep
 gurobi.log
+repomix-output.xml

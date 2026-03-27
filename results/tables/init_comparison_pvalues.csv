@@ -1,0 +1,3 @@
+comparison,mean_diff_final_gap,t_statistic,p_value,pairs
+proposed_vs_random,33.434,37.21776643568102,3.112165547904084e-06,5
+proposed_vs_greedy,4.1604,5.968643563269488,0.003957787976724283,5

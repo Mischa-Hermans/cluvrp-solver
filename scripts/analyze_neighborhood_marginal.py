@@ -1,4 +1,4 @@
-"""Run neighborhood ablation analysis and save the results."""
+"""Run neighborhood marginal influence analysis and save the results."""
 
 from configs.default import (
     INSTANCE_DIRS,

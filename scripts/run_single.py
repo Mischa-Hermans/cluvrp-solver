@@ -91,6 +91,11 @@ if __name__ == "__main__":
 
     base_kwargs, optimizer_kwargs = get_run_settings(SINGLE_METHOD)
 
+    print(f"Method: {SINGLE_METHOD}")
+    print(f"Instance: {SINGLE_INSTANCE_NAME}")
+    print(f"Time limit: {SINGLE_TIME_LIMIT_SECONDS}s")
+    print(f"Seed: {SINGLE_BASE_SEED}")
+
     result = run_single_instance(
         instance=instance,
         time_limit_seconds=SINGLE_TIME_LIMIT_SECONDS,
@@ -104,10 +109,6 @@ if __name__ == "__main__":
     best_solution = result["best_solution"]
     stats = result["stats"]
 
-    print(f"Method: {SINGLE_METHOD}")
-    print(f"Instance: {SINGLE_INSTANCE_NAME}")
-    print(f"Time limit: {SINGLE_TIME_LIMIT_SECONDS}s")
-    print(f"Seed: {SINGLE_BASE_SEED}")
     print(f"Initial cost: {initial_solution.total_cost:.3f}")
     print(f"Final cost: {best_solution.total_cost:.3f}")
     print(f"Elapsed time: {stats.elapsed_time:.3f}s")

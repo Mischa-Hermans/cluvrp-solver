@@ -101,6 +101,9 @@ if __name__ == "__main__":
 
     base_kwargs, optimizer_kwargs = get_benchmark_settings(BENCHMARK_METHOD)
 
+    print(f"Routing variant: {ROUTING_VARIANT}")
+    print(f"Method: {BENCHMARK_METHOD}")
+
     results_df, all_runs = run_benchmark(
         instances=instances,
         instance_names=INSTANCE_NAMES,
@@ -126,8 +129,6 @@ if __name__ == "__main__":
     save_dataframe_csv(results_df, csv_path)
     save_pickle(all_runs, pkl_path)
 
-    print(f"Routing variant: {ROUTING_VARIANT}")
-    print(f"Method: {BENCHMARK_METHOD}")
     print(f"Saved table to: {csv_path.resolve()}")
     print(f"Saved full benchmark results to: {pkl_path.resolve()}")
     print(results_df)

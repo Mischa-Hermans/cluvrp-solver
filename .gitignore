@@ -13,3 +13,4 @@ Thumbs.db
 !.gitkeep
 gurobi.log
 repomix-output.xml
+results/

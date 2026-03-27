@@ -4,4 +4,4 @@
 SINGLE_METHOD = "sa"
 
 # Choose from: "sa", "ils", "hgs"
-BENCHMARK_METHOD = "sa"
+BENCHMARK_METHOD = "hgs"

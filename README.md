@@ -19,7 +19,7 @@ Both routing variants are supported:
 
 ```bash
 git clone <https://github.com/Mischa-Hermans/cluvrp-solver.git>
-cd cluvrp
+cd cluvrp-solver
 pip install -r requirements.txt
 ```
 

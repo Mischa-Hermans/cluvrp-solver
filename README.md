@@ -75,7 +75,13 @@ The `results/` folder already contains:
 
 ---
 
-### 3. Run the full benchmark
+### 3. Run the full benchmark (optional)
+
+> **Note**
+> Running the benchmark is not required.  
+> All results are already included in the `results/` folder.
+
+! This takes some time, with parallel computing of instances around ~10 minutes !
 
 ```bash
 py -m scripts.run_benchmark

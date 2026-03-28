@@ -18,7 +18,7 @@ Both routing variants are supported:
 ### 1. Clone and install
 
 ```bash
-git clone <https://github.com/Mischa-Hermans/cluvrp-solver.git>
+git clone https://github.com/Mischa-Hermans/cluvrp-solver.git
 cd cluvrp-solver
 pip install -r requirements.txt
 ```
